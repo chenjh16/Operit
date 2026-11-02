@@ -512,11 +512,13 @@ object SystemToolPrompts {
             tools = fileSystemTools.tools.map { tool ->
                 if (tool.name != "read_file") return@map tool
 
+                // Keep direct media controls visible only when the selected chat model advertises
+                // the corresponding capability; hiding them for visual models forces OCR.
                 val filteredParams = (tool.parametersStructured ?: emptyList()).filter { param ->
                     when (param.name) {
-                        "direct_image" -> false
-                        "direct_audio" -> false
-                        "direct_video" -> false
+                        "direct_image" -> chatModelHasDirectImage
+                        "direct_audio" -> chatModelHasDirectAudio
+                        "direct_video" -> chatModelHasDirectVideo
                         "intent" -> shouldExposeIntent
                         else -> true
                     }
@@ -525,6 +527,8 @@ object SystemToolPrompts {
                 val adjustedDescription =
                     if (shouldExposeIntent) {
                         "Read the content of a file. For media files, you can also provide an 'intent' parameter to use a backend recognition model for analysis."
+                    } else if (chatModelHasDirectImage || chatModelHasDirectAudio || chatModelHasDirectVideo) {
+                        "Read the content of a file. For media files supported by the current model, set the corresponding direct_image, direct_audio, or direct_video parameter to true to pass the original media to the model."
                     } else {
                         tool.description
                     }
@@ -587,11 +591,13 @@ object SystemToolPrompts {
             tools = fileSystemToolsCn.tools.map { tool ->
                 if (tool.name != "read_file") return@map tool
 
+                // Keep direct media controls visible only when the selected chat model advertises
+                // the corresponding capability; hiding them for visual models forces OCR.
                 val filteredParams = (tool.parametersStructured ?: emptyList()).filter { param ->
                     when (param.name) {
-                        "direct_image" -> false
-                        "direct_audio" -> false
-                        "direct_video" -> false
+                        "direct_image" -> chatModelHasDirectImage
+                        "direct_audio" -> chatModelHasDirectAudio
+                        "direct_video" -> chatModelHasDirectVideo
                         "intent" -> shouldExposeIntent
                         else -> true
                     }
@@ -600,6 +606,8 @@ object SystemToolPrompts {
                 val adjustedDescription =
                     if (shouldExposeIntent) {
                         "读取文件内容。对于媒体文件，你也可以提供 intent 参数，使用后端识别模型进行分析。"
+                    } else if (chatModelHasDirectImage || chatModelHasDirectAudio || chatModelHasDirectVideo) {
+                        "读取文件内容。对于当前模型支持的媒体类型，将对应的 direct_image、direct_audio 或 direct_video 设置为 true，把原始媒体直接传给模型。"
                     } else {
                         tool.description
                     }

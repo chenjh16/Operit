@@ -47,11 +47,16 @@ set(OPERIT_MNN_FLATC_CMAKE_ARGS
     "-DCMAKE_BUILD_TYPE=Release"
 )
 
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-    find_program(OPERIT_MNN_HOST_C_COMPILER NAMES gcc NO_CMAKE_FIND_ROOT_PATH)
-    find_program(OPERIT_MNN_HOST_CXX_COMPILER NAMES g++ NO_CMAKE_FIND_ROOT_PATH)
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+    if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+        set(OPERIT_MNN_HOST_C_COMPILER "/usr/bin/clang")
+        set(OPERIT_MNN_HOST_CXX_COMPILER "/usr/bin/clang++")
+    else()
+        find_program(OPERIT_MNN_HOST_C_COMPILER NAMES gcc NO_CMAKE_FIND_ROOT_PATH)
+        find_program(OPERIT_MNN_HOST_CXX_COMPILER NAMES g++ NO_CMAKE_FIND_ROOT_PATH)
+    endif()
     if(NOT OPERIT_MNN_HOST_C_COMPILER OR NOT OPERIT_MNN_HOST_CXX_COMPILER)
-        message(FATAL_ERROR "MNN schema generation requires the host gcc and g++ compilers on Linux.")
+        message(FATAL_ERROR "MNN schema generation requires a host C/C++ compiler on Linux or Darwin.")
     endif()
     list(APPEND OPERIT_MNN_FLATC_CMAKE_ARGS
         "-DCMAKE_C_COMPILER=${OPERIT_MNN_HOST_C_COMPILER}"

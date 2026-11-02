@@ -142,6 +142,33 @@ object ToolExecutionManager {
         )
     }
 
+    private fun injectDirectImageParameter(
+        invocation: ToolInvocation,
+        chatModelHasDirectImage: Boolean
+    ): ToolInvocation {
+        if (!chatModelHasDirectImage || invocation.tool.name != "read_file") {
+            return invocation
+        }
+        val environment = invocation.tool.parameters
+            .firstOrNull { it.name == "environment" }
+            ?.value
+            ?.trim()
+        if (!environment.isNullOrEmpty() && !environment.equals("android", ignoreCase = true)) {
+            return invocation
+        }
+        if (invocation.tool.parameters.any { it.name == "direct_image" }) {
+            return invocation
+        }
+
+        // Older/custom models may omit this parameter even when the schema exposes it; without
+        // the explicit value the Android image reader enters its OCR branch.
+        return invocation.copy(
+            tool = invocation.tool.copy(
+                parameters = invocation.tool.parameters + ToolParameter("direct_image", "true")
+            )
+        )
+    }
+
     private fun getParameterValue(tool: AITool, name: String): String? {
         return tool.parameters.firstOrNull { it.name == name }?.value?.trim()
     }
@@ -510,7 +537,8 @@ object ToolExecutionManager {
         toolExposureMode: ToolExposureMode = ToolExposureMode.FULL,
         callerName: String? = null,
         callerChatId: String? = null,
-        callerCardId: String? = null
+        callerCardId: String? = null,
+        chatModelHasDirectImage: Boolean = false
     ): ToolExecutionBatch = coroutineScope {
         val orderedResults = OrderedToolResults(invocations.size) { markup ->
             collector.emit(ensureOwnLine(markup))
@@ -540,7 +568,11 @@ object ToolExecutionManager {
 
         // 1. 顶层工具暴露模式拦截
         val toolExposurePermittedInvocations = mutableListOf<IndexedValue<ToolInvocation>>()
-        for ((index, invocation) in invocations.withIndex()) {
+        for ((index, originalInvocation) in invocations.withIndex()) {
+            val invocation = injectDirectImageParameter(
+                originalInvocation,
+                chatModelHasDirectImage
+            )
             val deniedResult = buildToolExposureDeniedResult(context, invocation, toolExposureMode)
             if (deniedResult == null) {
                 toolExposurePermittedInvocations.add(IndexedValue(index, invocation))

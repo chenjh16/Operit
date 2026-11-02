@@ -2126,7 +2126,8 @@ class EnhancedAIService private constructor(private val context: Context) {
                 toolExposureMode = ToolExposureMode.resolve(config.apiProviderType),
                 callerName = characterName,
                 callerChatId = chatId,
-                callerCardId = roleCardId
+                callerCardId = roleCardId,
+                chatModelHasDirectImage = config.enableDirectImageProcessing
             )
 
             if (toolBatch.results.isNotEmpty()) {
