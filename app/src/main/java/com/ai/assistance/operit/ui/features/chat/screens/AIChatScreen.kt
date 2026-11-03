@@ -661,7 +661,6 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     // 滚动状态
     var autoScrollToBottom by remember { mutableStateOf(true) }
     val onAutoScrollToBottomChange = remember { { it: Boolean -> autoScrollToBottom = it } }
-    val requestAutoScrollToBottom = remember { { autoScrollToBottom = true } }
     val isChatScrollDragged by scrollState.interactionSource.collectIsDraggedAsState()
     val imeBottomPx = WindowInsets.ime.getBottom(density)
     val latestChatHistory by rememberUpdatedState(chatHistory)
@@ -669,6 +668,15 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     val latestIsChatScrollDragged by rememberUpdatedState(isChatScrollDragged)
     val latestHasNewerDisplayHistory by rememberUpdatedState(hasNewerDisplayHistory)
     val latestIsLoadingDisplayWindow by rememberUpdatedState(isLoadingDisplayWindow)
+
+    val requestAutoScrollToBottom: () -> Unit = {
+        autoScrollToBottom = true
+        if (!hasNewerDisplayHistory && !isLoadingDisplayWindow && chatHistory.isNotEmpty()) {
+            coroutineScope.launch {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
+    }
 
     // 处理来自ViewModel的滚动事件（流式输出时）
     LaunchedEffect(Unit) {
