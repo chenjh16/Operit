@@ -393,16 +393,9 @@ internal fun ChatScrollNavigator(
             .collectLatest { currentPosition ->
                 if (scrollState.isScrollInProgress) {
                     val movedAwayFromBottom = currentPosition < lastPosition
-                    if (movedAwayFromBottom) {
+                    if (movedAwayFromBottom && currentIsDragged) {
                         if (currentAutoScrollToBottom) {
                             currentOnAutoScrollToBottomChange?.invoke(false)
-                        }
-                    } else {
-                        val isAtBottom =
-                            scrollState.value >= scrollState.maxValue &&
-                                !currentHasNewerDisplayHistory
-                        if (isAtBottom && !currentAutoScrollToBottom) {
-                            currentOnAutoScrollToBottomChange?.invoke(true)
                         }
                     }
                 }

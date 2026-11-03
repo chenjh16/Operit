@@ -63,14 +63,6 @@ fun ScrollToBottomButton(
                             onAutoScrollToBottomChange(false)
                             showScrollButton = true
                         }
-                    } else {
-                        val isAtBottom =
-                            scrollState.value >= scrollState.maxValue &&
-                                !hasNewerDisplayHistory
-                        if (isAtBottom && !autoScrollToBottom) {
-                            onAutoScrollToBottomChange(true)
-                            showScrollButton = false
-                        }
                     }
                 }
                 lastPosition = currentPosition
@@ -92,7 +84,6 @@ fun ScrollToBottomButton(
         },
     )
 }
-
 @Composable
 fun ScrollToBottomButton(
     scrollState: ChatLazyListState,
@@ -125,12 +116,6 @@ fun ScrollToBottomButton(
                         if (autoScrollToBottom && isDragged) {
                             onAutoScrollToBottomChange(false)
                             showScrollButton = true
-                        }
-                    } else {
-                        val isAtBottom = scrollState.isAtBottom()
-                        if (isAtBottom && !autoScrollToBottom) {
-                            onAutoScrollToBottomChange(true)
-                            showScrollButton = false
                         }
                     }
                 }
@@ -192,14 +177,6 @@ fun ScrollToBottomButton(
                             onAutoScrollToBottomChange(false)
                             showScrollButton = true
                         }
-                    } else {
-                        val isAtBottom =
-                            scrollState.isAtBottom(reverseLayout = reverseLayout) &&
-                                !hasNewerDisplayHistory
-                        if (isAtBottom && !autoScrollToBottom) {
-                            onAutoScrollToBottomChange(true)
-                            showScrollButton = false
-                        }
                     }
                 }
                 lastIndex = currentIndex
@@ -253,28 +230,5 @@ private fun ScrollToBottomButtonContent(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    }
-}
-
-private fun ChatLazyListState.isAtBottom(): Boolean {
-    val layoutInfo = layoutInfo
-    if (layoutInfo.totalItemsCount == 0) {
-        return true
-    }
-    val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return false
-    return !canScrollForward && lastVisibleItemIndex >= layoutInfo.totalItemsCount - 1
-}
-
-private fun ComposeLazyListState.isAtBottom(reverseLayout: Boolean = false): Boolean {
-    val layoutInfo = layoutInfo
-    if (layoutInfo.totalItemsCount == 0) {
-        return true
-    }
-    return if (reverseLayout) {
-        val firstVisibleItemIndex = layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: return false
-        !canScrollBackward && firstVisibleItemIndex <= 0
-    } else {
-        val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return false
-        !canScrollForward && lastVisibleItemIndex >= layoutInfo.totalItemsCount - 1
     }
 }

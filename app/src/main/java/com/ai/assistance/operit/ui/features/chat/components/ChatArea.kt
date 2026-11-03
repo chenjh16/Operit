@@ -288,13 +288,11 @@ fun ChatArea(
         }
     }
 
-    val lastMessageContentLength = lastMessage?.content?.length
     LaunchedEffect(
         autoScrollToBottom,
         messagesCount,
         hasNewerDisplayHistory,
         isLoadingDisplayWindow,
-        lastMessageContentLength,
     ) {
         if (
             autoScrollToBottom &&
@@ -324,7 +322,11 @@ fun ChatArea(
 
         val targetAnchor = pendingTargetAnchor ?: return@LaunchedEffect
         val isActualLatestMessage = targetIndex == messagesCount - 1 && !hasNewerDisplayHistory
-        onAutoScrollToBottomChange?.invoke(isActualLatestMessage)
+        // Reaching the latest target programmatically must not reopen follow mode after the
+        // user detached from the stream. Only an explicit bottom-button action may do that.
+        if (!isActualLatestMessage || autoScrollToBottom) {
+            onAutoScrollToBottomChange?.invoke(isActualLatestMessage)
+        }
 
         if (targetIndex == messagesCount - 1) {
             scrollState.animateScrollTo(scrollState.maxValue)

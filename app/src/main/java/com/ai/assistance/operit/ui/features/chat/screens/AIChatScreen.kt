@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -661,9 +662,11 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
     var autoScrollToBottom by remember { mutableStateOf(true) }
     val onAutoScrollToBottomChange = remember { { it: Boolean -> autoScrollToBottom = it } }
     val requestAutoScrollToBottom = remember { { autoScrollToBottom = true } }
+    val isChatScrollDragged by scrollState.interactionSource.collectIsDraggedAsState()
     val imeBottomPx = WindowInsets.ime.getBottom(density)
     val latestChatHistory by rememberUpdatedState(chatHistory)
     val latestAutoScrollToBottom by rememberUpdatedState(autoScrollToBottom)
+    val latestIsChatScrollDragged by rememberUpdatedState(isChatScrollDragged)
     val latestHasNewerDisplayHistory by rememberUpdatedState(hasNewerDisplayHistory)
     val latestIsLoadingDisplayWindow by rememberUpdatedState(isLoadingDisplayWindow)
 
@@ -672,6 +675,7 @@ val actualViewModel: ChatViewModel = viewModel ?: viewModel { ChatViewModel(cont
         scrollToBottomEvent.collect {
             if (
                 latestAutoScrollToBottom &&
+                    !latestIsChatScrollDragged &&
                     !latestHasNewerDisplayHistory &&
                     !latestIsLoadingDisplayWindow
             ) {
