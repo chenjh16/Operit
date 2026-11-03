@@ -2,6 +2,8 @@ package com.ai.assistance.operit.ui.features.chat.components.part
 
 import android.webkit.WebView
 import android.webkit.WebSettings
+import android.net.Uri
+import android.util.Base64
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -44,6 +46,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.animations.SimpleAnimatedVisibility
 import com.ai.assistance.operit.ui.common.markdown.DefaultXmlRenderer
+import com.ai.assistance.operit.ui.common.markdown.MarkdownImageRenderer
 import com.ai.assistance.operit.ui.common.markdown.StreamMarkdownRenderer
 import com.ai.assistance.operit.ui.common.markdown.XmlContentRenderer
 import com.ai.assistance.operit.ui.common.markdown.XmlRenderPluginRegistry
@@ -51,14 +54,19 @@ import com.ai.assistance.operit.ui.common.rememberLocal
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatUtils
 import com.ai.assistance.operit.util.ChatMarkupRegex
+import com.ai.assistance.operit.util.ImagePoolManager
 import com.ai.assistance.operit.util.stream.Stream
 import com.ai.assistance.operit.util.stream.stream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.StringReader
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 
 /** 支持多种 XML 标签的自定义渲染器 包含高效的前缀检测，直接解析标签类型 */
 private const val TOOL_PARAM_TOKEN_THRESHOLD = 50
+private const val TAG = "CustomXmlRenderer"
 
 class CustomXmlRenderer(
     private val showThinkingProcess: Boolean = true,
@@ -70,7 +78,7 @@ class CustomXmlRenderer(
 ) : XmlContentRenderer {
     // 定义渲染器能够处理的内置标签集合
     private val builtInTags =
-            setOf("think", "thinking", "search", "tool", "status", "tool_result", "html", "mood", "font", "details", "detail", "meta")
+            setOf("think", "thinking", "search", "tool", "status", "tool_result", "html", "mood", "font", "details", "detail", "meta", "link")
 
     private data class ToolRequestRenderState(
         val rawToolName: String,
@@ -219,8 +227,66 @@ class CustomXmlRenderer(
             "mood" -> renderMoodTag(trimmedContent, Modifier, textColor)
             "font" -> FontTagRenderer.Render(trimmedContent, Modifier, textColor)
             "details", "detail" -> DetailsTagRenderer.Render(trimmedContent, Modifier, textColor, enableDialogs = enableDialogs)
+            "link" -> renderMediaLink(trimmedContent, Modifier)
             else -> fallback.RenderXmlContent(trimmedContent, Modifier, textColor, xmlStream, renderInstanceKey)
         }
+    }
+
+    @Composable
+    private fun renderMediaLink(content: String, modifier: Modifier) {
+        val type = extractXmlAttribute(content, "type")?.lowercase().orEmpty()
+        val id = extractXmlAttribute(content, "id").orEmpty()
+        if (type != "image" || id.isBlank() || id == "error") {
+            fallback.RenderXmlContent(content, modifier, MaterialTheme.colorScheme.onSurface, null, null)
+            return
+        }
+
+        val context = LocalContext.current
+        val imageUri by produceState<String?>(initialValue = null, key1 = id) {
+            value = withContext(Dispatchers.IO) {
+                try {
+                    val imageData = ImagePoolManager.getImage(id) ?: return@withContext null
+                    val bytes = Base64.decode(imageData.base64, Base64.DEFAULT)
+                    val cacheDir = File(context.cacheDir, "chat_image_links")
+                    if (!cacheDir.exists()) {
+                        cacheDir.mkdirs()
+                    }
+                    val safeId = id.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    val imageFile = File(cacheDir, "$safeId.img")
+                    imageFile.writeBytes(bytes)
+                    Uri.fromFile(imageFile).toString()
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "Failed to prepare image link preview: $id", e)
+                    null
+                }
+            }
+        }
+
+        if (imageUri.isNullOrBlank()) {
+            Text(
+                text = stringResource(R.string.image_expired),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = modifier.padding(vertical = 4.dp),
+            )
+        } else {
+            MarkdownImageRenderer(
+                imageMarkdown = "![${stringResource(R.string.image)}]($imageUri)",
+                modifier = modifier,
+                maxImageHeight = 220,
+                enableDialogs = enableDialogs,
+            )
+        }
+    }
+
+    private fun extractXmlAttribute(content: String, name: String): String? {
+        return Regex(
+            "\\b${Regex.escape(name)}\\s*=\\s*[\"']([^\"']+)[\"']",
+            RegexOption.IGNORE_CASE,
+        )
+            .find(content)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
     }
 
     /** 从XML字符串中提取第一个标签的名称。 例如: "<think>...</think>" -> "think" */
